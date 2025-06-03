@@ -1,9 +1,9 @@
 const std = @import("std");
 
-pub fn main() !void {
-    // shortcut based on `std.io.getStdErr()`
-    // std.debug.print("Conway Game of Life", .{});
+const ALIVE = "♥";
+const DEAD = "‧";
 
+pub fn main() !void {
     // stdout is for the actual output of your application, for example if you
     // are implementing gzip, then only the compressed bytes should be sent to
     // stdout, not any debugging messages.
@@ -11,9 +11,8 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    try stdout.print("Conway Game of Life", .{});
-
     try stdout.print(
+        \\Conway Game of Life simulation
         \\Rules:
         \\ - Alive cells die if they have fewer than two or more than three living neighbors.
         \\ - Dead cells with exactly three living neighbors become alive.
@@ -21,35 +20,42 @@ pub fn main() !void {
     , .{});
 
     try bw.flush();
-    const ALIVE = "♥";
-    const DEAD = "‧";
 
     // Lets start with a blinker
-    // note: even if the cell is a []const u8, we're mutating the reference
-    // stored in the array
-    const grid = [_][3][]const u8{
+    const grid = [3][3][]const u8{
         .{ DEAD, DEAD, DEAD },
         .{ ALIVE, ALIVE, ALIVE },
         .{ DEAD, DEAD, DEAD },
     };
-    // Print grid
-    for (grid) |row| {
-        for (row) |cell| {
-            try stdout.print("{s} ", .{cell});
-        }
-        try stdout.print("\n", .{});
-    }
-
+    try writeGrid(@TypeOf(stdout), stdout, grid);
     try bw.flush();
 
+    const grid_cp = calculNextGeneration(grid);
+
+    try writeGrid(@TypeOf(stdout), stdout, grid_cp);
+    try bw.flush(); // Don't forget to flush!
+
+}
+
+fn writeGrid(comptime WriterType: type, w: WriterType, grid: [3][3][]const u8) !void {
+    for (grid) |row| {
+        for (row) |cell| {
+            try w.print("{s} ", .{cell});
+        }
+        try w.print("\n", .{});
+    }
+}
+
+fn calculNextGeneration(grid: [3][3][]const u8) [3][3][]const u8 {
+    // copy grid
+    var grid_copy = grid;
     const neighbors = [_][2]isize{
         .{ -1, -1 }, .{ -1, 0 }, .{ -1, 1 },
         .{ 0, -1 },  .{ 0, 1 },  .{ 1, -1 },
         .{ 1, 0 },   .{ 1, 1 },
     };
-
     // Calcul next generation
-    for (&grid, 0..) |*row, i| {
+    for (&grid_copy, 0..) |*row, i| {
         for (row, 0..) |*cell, j| {
             var alive_neighbors: usize = 0;
 
@@ -69,45 +75,36 @@ pub fn main() !void {
             }
             if (std.mem.eql(u8, cell.*, DEAD)) {
                 if (alive_neighbors == 3) {
-                    //cell becomes alive
-                    std.debug.print("alive ", .{});
+                    cell.* = ALIVE;
                 }
             }
             if (std.mem.eql(u8, cell.*, ALIVE)) {
                 if (alive_neighbors < 2 or alive_neighbors > 3) {
-                    //cell dies
-                    std.debug.print("dead ", .{});
+                    cell.* = DEAD;
                 }
             }
         }
     }
-
-    try bw.flush(); // Don't forget to flush!
-
+    return grid_copy;
 }
 
 test "blinker start horizontal" {
-    const ALIVE: []const u8 = "♥";
-    const DEAD: []const u8 = "‧";
-
-    var grid = [_][3][]const u8{
+    const grid = [_][3][]const u8{
         .{ DEAD, DEAD, DEAD },
         .{ ALIVE, ALIVE, ALIVE },
         .{ DEAD, DEAD, DEAD },
     };
 
+    // call CalculateNextGeneration();
+    //try std.testing.expect(std.mem.eql(u8, grid[0][0], DEAD));
+    //try std.testing.expect(std.mem.eql(u8, grid[0][1], ALIVE));
+    //try std.testing.expect(std.mem.eql(u8, grid[0][2], DEAD));
+    //try std.testing.expect(std.mem.eql(u8, grid[1][0], DEAD));
     try std.testing.expect(std.mem.eql(u8, grid[1][1], ALIVE));
-
-    for (&grid) |*row| {
-        for (row) |*cell| {
-            cell.* = ALIVE;
-        }
-    }
-    try std.testing.expect(std.mem.eql(u8, grid[1][1], ALIVE));
+    //try std.testing.expect(std.mem.eql(u8, grid[1][2], DEAD));
+    //try std.testing.expect(std.mem.eql(u8, grid[2][0], DEAD));
+    //try std.testing.expect(std.mem.eql(u8, grid[2][1], ALIVE));
+    //try std.testing.expect(std.mem.eql(u8, grid[2][2], DEAD));
 }
 
 test "blinker start vertical" {}
-
-fn dead() []u8 {
-    return "♥";
-}
