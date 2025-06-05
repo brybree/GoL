@@ -23,16 +23,14 @@ pub fn main() !void {
     var main_grid = Grid.init(allocator);
     defer main_grid.deinit();
 
-    // Lets start with a blinker
-    try main_grid.set(0, 0, false);
-    try main_grid.set(1, 0, false);
-    try main_grid.set(2, 0, false);
-    try main_grid.set(0, 1, true);
-    try main_grid.set(1, 1, true);
-    try main_grid.set(2, 1, true);
-    try main_grid.set(0, 2, false);
-    try main_grid.set(1, 2, false);
-    try main_grid.set(2, 2, false);
+    const cols = std.crypto.random.intRangeAtMost(u8, 3, 10);
+    const rows = std.crypto.random.intRangeAtMost(u8, 3, 10);
+
+    for (0..cols) |col| {
+        for (0..rows) |row| {
+            try main_grid.set(col, row, std.crypto.random.boolean());
+        }
+    }
 
     try display.writeGrid(@TypeOf(stdout), stdout, main_grid);
     try bw.flush();
