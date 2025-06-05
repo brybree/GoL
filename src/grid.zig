@@ -1,5 +1,11 @@
 const std = @import("std");
 
+const neighbors = [_][2]isize{
+    .{ -1, -1 }, .{ -1, 0 }, .{ -1, 1 },
+    .{ 0, -1 },  .{ 0, 1 },  .{ 1, -1 },
+    .{ 1, 0 },   .{ 1, 1 },
+};
+
 // True values are alive cell
 // False values are dead cell
 pub const Grid = struct {
@@ -60,17 +66,60 @@ pub const Grid = struct {
 
         row.items[x] = value;
     }
+
+    pub fn evolveToNextGeneration(self: *Grid) !void {
+        var gridcp = try self.clone();
+        defer gridcp.deinit();
+
+        for (gridcp.rows.items, 0..) |row, row_index| {
+            for (row.items, 0..) |cell, cell_index| {
+                var alive_neighbors: usize = 0;
+
+                for (neighbors) |offset| {
+                    const ni = @as(isize, @intCast(cell_index)) + offset[0];
+                    const nj = @as(isize, @intCast(row_index)) + offset[1];
+
+                    // check for boundaries
+                    if (ni < 0 or nj < 0)
+                        continue;
+
+                    const niu = @as(u8, @intCast(ni));
+                    const nju = @as(u8, @intCast(nj));
+
+                    // check for boundaries
+                    if (nju >= gridcp.rows.items.len) continue;
+                    const tmp_row = gridcp.rows.items[nju];
+                    if (niu >= tmp_row.items.len) continue;
+
+                    if (try gridcp.get(niu, nju) == true) {
+                        alive_neighbors += 1;
+                    }
+                }
+
+                if (cell == false) {
+                    if (alive_neighbors == 3) {
+                        try self.set(cell_index, row_index, true);
+                    }
+                }
+                if (cell == true) {
+                    if (alive_neighbors < 2 or alive_neighbors > 3) {
+                        try self.set(cell_index, row_index, false);
+                    }
+                }
+            }
+        }
+    }
 };
 
-const expect = std.testing.expect;
+const expectEqual = std.testing.expectEqual;
 
 test "blinker start horizontal" {
-    // Lets start with a blinker
     const allocator = std.heap.page_allocator;
 
     var grid = Grid.init(allocator);
     defer grid.deinit();
 
+    // horizontal blinker
     try grid.set(0, 0, false);
     try grid.set(1, 0, false);
     try grid.set(2, 0, false);
@@ -80,6 +129,48 @@ test "blinker start horizontal" {
     try grid.set(0, 2, false);
     try grid.set(1, 2, false);
     try grid.set(2, 2, false);
+
+    try grid.evolveToNextGeneration();
+
+    // should become a vertical blinker
+    try expectEqual(try grid.get(0, 0), false);
+    try expectEqual(try grid.get(1, 0), true);
+    try expectEqual(try grid.get(2, 0), false);
+    try expectEqual(try grid.get(0, 1), false);
+    try expectEqual(try grid.get(1, 1), true);
+    try expectEqual(try grid.get(2, 1), false);
+    try expectEqual(try grid.get(0, 2), false);
+    try expectEqual(try grid.get(1, 2), true);
+    try expectEqual(try grid.get(2, 2), false);
 }
 
-test "blinker start vertical" {}
+test "blinker start vertical" {
+    const allocator = std.heap.page_allocator;
+
+    var grid = Grid.init(allocator);
+    defer grid.deinit();
+
+    // vertical blinker
+    try grid.set(0, 0, false);
+    try grid.set(1, 0, true);
+    try grid.set(2, 0, false);
+    try grid.set(0, 1, false);
+    try grid.set(1, 1, true);
+    try grid.set(2, 1, false);
+    try grid.set(0, 2, false);
+    try grid.set(1, 2, true);
+    try grid.set(2, 2, false);
+
+    try grid.evolveToNextGeneration();
+
+    // should become a vertical blinker
+    try expectEqual(try grid.get(0, 0), false);
+    try expectEqual(try grid.get(1, 0), false);
+    try expectEqual(try grid.get(2, 0), false);
+    try expectEqual(try grid.get(0, 1), true);
+    try expectEqual(try grid.get(1, 1), true);
+    try expectEqual(try grid.get(2, 1), true);
+    try expectEqual(try grid.get(0, 2), false);
+    try expectEqual(try grid.get(1, 2), false);
+    try expectEqual(try grid.get(2, 2), false);
+}
