@@ -111,6 +111,50 @@ pub const Grid = struct {
     }
 };
 
+// Grid with history
+pub const GridHistory = struct {
+    allocator: std.mem.Allocator,
+    current: Grid,
+    history: std.ArrayList(Grid),
+
+    pub fn init(allocator: std.mem.Allocator) GridHistory {
+        return GridHistory{
+            .allocator = allocator,
+            .current = Grid.init(allocator),
+            .history = std.ArrayList(Grid).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *GridHistory) void {
+        for (self.history.items) |*grid| {
+            grid.deinit();
+        }
+        self.history.deinit();
+    }
+
+    pub fn nextStep(self: *GridHistory) !void {
+        try self.history.append(try self.current.clone());
+        try self.current.evolveToNextGeneration();
+    }
+
+    pub fn previousStep(self: *GridHistory) !void {
+        if (self.history.items.len == 0) return;
+
+        self.current.deinit();
+        self.current = self.history.pop().?;
+        // same as:
+        // if (self.history.pop()) | prev | {
+        //  self.current.deinit();
+        //  self.current = prev;
+        // }
+    }
+
+    pub fn set(self: *GridHistory, x: usize, y: usize, value: bool) !void {
+        try self.current.set(x, y, value);
+    }
+};
+
+// {{{ TESTS
 const expectEqual = std.testing.expectEqual;
 
 test "blinker start horizontal" {
@@ -163,7 +207,7 @@ test "blinker start vertical" {
 
     try grid.evolveToNextGeneration();
 
-    // should become a vertical blinker
+    // should become a horizontal blinker
     try expectEqual(try grid.get(0, 0), false);
     try expectEqual(try grid.get(1, 0), false);
     try expectEqual(try grid.get(2, 0), false);
@@ -174,3 +218,4 @@ test "blinker start vertical" {
     try expectEqual(try grid.get(1, 2), false);
     try expectEqual(try grid.get(2, 2), false);
 }
+// }}}

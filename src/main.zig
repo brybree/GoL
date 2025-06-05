@@ -2,6 +2,7 @@ const std = @import("std");
 const display = @import("display.zig");
 const grid = @import("grid.zig");
 const Grid = grid.Grid;
+const GridHistory = grid.GridHistory;
 
 pub fn main() !void {
     const stdout_file = std.io.getStdOut().writer();
@@ -20,7 +21,7 @@ pub fn main() !void {
 
     const allocator = std.heap.page_allocator;
 
-    var main_grid = Grid.init(allocator);
+    var main_grid = GridHistory.init(allocator);
     defer main_grid.deinit();
 
     const cols = std.crypto.random.intRangeAtMost(u8, 3, 10);
@@ -32,11 +33,18 @@ pub fn main() !void {
         }
     }
 
-    try display.writeGrid(@TypeOf(stdout), stdout, main_grid);
+    try display.writeGrid(@TypeOf(stdout), stdout, main_grid.current);
     try bw.flush();
 
-    try main_grid.evolveToNextGeneration();
+    try main_grid.nextStep();
+    try display.writeGrid(@TypeOf(stdout), stdout, main_grid.current);
+    try bw.flush();
 
-    try display.writeGrid(@TypeOf(stdout), stdout, main_grid);
+    try main_grid.nextStep();
+    try display.writeGrid(@TypeOf(stdout), stdout, main_grid.current);
+    try bw.flush();
+
+    try main_grid.previousStep();
+    try display.writeGrid(@TypeOf(stdout), stdout, main_grid.current);
     try bw.flush();
 }
